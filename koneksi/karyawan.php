@@ -1,110 +1,126 @@
 <?php
-// ==========================================
-// 1. KONFIGURASI DAN KONEKSI DATABASE (PDO)
-// ==========================================
-$host = "localhost";
-$db   = "nama_database_anda";
-$user = "root";
-$pass = "";
-$charset = "utf8mb4";
-
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
-
-try {
-     $pdo = new PDO($dsn, $user, $pass, $options);
-} catch (\PDOException $e) {
-     throw new \PDOException($e->getMessage(), (int)$e->getCode());
-}
-
+// FILE: Karyawan.php
 
 // ==========================================
-// 2. DEFINISI ABSTRACT CLASS KARYAWAN
+// 1. ABSTRACT CLASS INDUK (PARENT CLASS)
 // ==========================================
 abstract class Karyawan {
-    // Atribut Global (sesuai kolom database)
+    // Properti Terenkapsulasi (Protected)
     protected $id_karyawan;
     protected $nama_karyawan;
-    protected $jenis_karyawan;
+    protected $departemen;
+    protected $hari_kerja_masuk;
+    protected $gaji_dasar_perhari;
 
-    public function __construct($id, $nama, $jenis) {
+    // Constructor Global
+    public function __construct($id, $nama, $dept, $hariKerja, $gajiPerhari) {
         $this->id_karyawan = $id;
         $this->nama_karyawan = $nama;
-        $this->jenis_karyawan = $jenis;
+        $this->departemen = $dept;
+        $this->hari_kerja_masuk = $hariKerja;
+        $this->gaji_dasar_perhari = $gajiPerhari;
     }
 
     // Getter & Setter Global
-    public function getId() { return $this->id_karyawan; }
-    public function getNama() { return $this->nama_karyawan; }
-    public function getJenis() { return $this->jenis_karyawan; }
+    public function getIdKaryawan() { return $this->id_karyawan; }
+    public function getNamaKaryawan() { return $this->nama_karyawan; }
+    public function getDepartemen() { return $this->departemen; }
+    public function getHariKerjaMasuk() { return $this->hari_kerja_masuk; }
+    public function getGajiDasarPerhari() { return $this->gaji_dasar_perhari; }
 
-    // Abstract Method yang WAJIB diimplementasikan oleh setiap jenis karyawan
-    abstract public function dapatkanDetailKaryawan();
+    // ============================================================
+    // DEKLARASI ABSTRACT METHOD (Tanpa isi/body, wajib di sub-class)
+    // ============================================================
+    abstract public function hitungGajiBersih();
+    abstract public function tampilProfilKaryawan();
 }
 
 
 // ==========================================
-// 3. IMPLEMENTASI KELAS ANAK (SUB-CLASS)
+// 2. SUB-CLASS: KARYAWAN TETAP
 // ==========================================
+class KaryawanTetap extends Karyawan {
+    private $tunjangan_jabatan;
 
-// --- Kelas Karyawan Kontrak ---
+    public function __construct($id, $nama, $dept, $hariKerja, $gajiPerhari, $tunjangan = 500000) {
+        parent::__construct($id, $nama, $dept, $hariKerja, $gajiPerhari);
+        $this->tunjangan_jabatan = $tunjangan;
+    }
+
+    // Implementasi Rumus Gaji Bersih Karyawan Tetap
+    public function hitungGajiBersih() {
+        $gajiKotor = $this->hari_kerja_masuk * $this->gaji_dasar_perhari;
+        $pajak = $gajiKotor * 0.05; // Potongan pajak 5% untuk karyawan tetap
+        return ($gajiKotor + $this->tunjangan_jabatan) - $pajak;
+    }
+
+    // Implementasi Tampilan Profil Karyawan Tetap
+    public function tampilProfilKaryawan() {
+        echo "<h3>[Profil Karyawan Tetap]</h3>";
+        echo "ID: {$this->id_karyawan}<br>";
+        echo "Nama: {$this->nama_karyawan}<br>";
+        echo "Departemen: {$this->departemen}<br>";
+        echo "Status: Karyawan Tetap Perusahaan<br>";
+        echo "Gaji Bersih Bulan Ini: Rp " . number_format($this->hitungGajiBersih(), 0, ',', '.') . "<br><hr>";
+    }
+}
+
+
+// ==========================================
+// 3. SUB-CLASS: KARYAWAN KONTRAK
+// ==========================================
 class KaryawanKontrak extends Karyawan {
-    // Atribut Spesifik
     private $durasi_kontrak_bulan;
     private $agensi_karyawan;
 
-    public function __construct($id, $nama, $durasi, $agensi) {
-        // Memanggil constructor dari abstract class parent
-        parent::__construct($id, $nama, 'kontrak');
+    public function __construct($id, $nama, $dept, $hariKerja, $gajiPerhari, $durasi, $agensi) {
+        parent::__construct($id, $nama, $dept, $hariKerja, $gajiPerhari);
         $this->durasi_kontrak_bulan = $durasi;
         $this->agensi_karyawan = $agensi;
     }
 
-    // Mengimplementasikan abstract method dari parent
-    public function dapatkanDetailKaryawan() {
-        return [
-            'id' => $this->id_karyawan,
-            'nama' => $this->nama_karyawan,
-            'jenis' => $this->jenis_karyawan,
-            'info_spesifik' => "Durasi: {$this->durasi_kontrak_bulan} bulan, Agensi: {$this->agensi_karyawan}"
-        ];
+    // Implementasi Rumus Gaji Bersih Karyawan Kontrak
+    public function hitungGajiBersih() {
+        $gajiKotor = $this->hari_kerja_masuk * $this->gaji_dasar_perhari;
+        $potonganAgensi = $gajiKotor * 0.10; // Potongan manajemen agensi 10%
+        return $gajiKotor - $potonganAgensi;
+    }
+
+    // Implementasi Tampilan Profil Karyawan Kontrak
+    public function tampilProfilKaryawan() {
+        echo "<h3>[Profil Karyawan Kontrak]</h3>";
+        echo "ID: {$this->id_karyawan}<br>";
+        echo "Nama: {$this->nama_karyawan}<br>";
+        echo "Departemen: {$this->departemen}<br>";
+        echo "Agensi Penyalur: {$this->agensi_karyawan}<br>";
+        echo "Sisa Kontrak: {$this->durasi_kontrak_bulan} Bulan<br>";
+        echo "Gaji Bersih Bulan Ini: Rp " . number_format($this->hitungGajiBersih(), 0, ',', '.') . "<br><hr>";
     }
 }
 
-// --- Kelas Karyawan Tetap ---
-class KaryawanTetap extends Karyawan {
-    public function __construct($id, $nama) {
-        parent::__construct($id, $nama, 'tetap');
-    }
 
-    // Mengimplementasikan abstract method dari parent
-    public function dapatkanDetailKaryawan() {
-        return [
-            'id' => $this->id_karyawan,
-            'nama' => $this->nama_karyawan,
-            'jenis' => $this->jenis_karyawan,
-            'info_spesifik' => "Karyawan Tetap Perusahaan"
-        ];
-    }
-}
-
-// --- Kelas Karyawan Magang ---
+// ==========================================
+// 4. SUB-CLASS: KARYAWAN MAGANG
+// ==========================================
 class KaryawanMagang extends Karyawan {
-    public function __construct($id, $nama) {
-        parent::__construct($id, $nama, 'magang');
+    
+    public function __construct($id, $nama, $dept, $hariKerja, $gajiPerhari) {
+        parent::__construct($id, $nama, $dept, $hariKerja, $gajiPerhari);
     }
 
-    // Mengimplementasikan abstract method dari parent
-    public function dapatkanDetailKaryawan() {
-        return [
-            'id' => $this->id_karyawan,
-            'nama' => $this->nama_karyawan,
-            'jenis' => $this->jenis_karyawan,
-            'info_spesifik' => "Karyawan Magang / Internship"
-        ];
+    // Implementasi Rumus Gaji Bersih Karyawan Magang
+    public function hitungGajiBersih() {
+        // Karyawan magang menerima gaji murni tanpa tunjangan atau potongan pajak
+        return $this->hari_kerja_masuk * $this->gaji_dasar_perhari;
+    }
+
+    // Implementasi Tampilan Profil Karyawan Magang
+    public function tampilProfilKaryawan() {
+        echo "<h3>[Profil Karyawan Magang]</h3>";
+        echo "ID: {$this->id_karyawan}<br>";
+        echo "Nama: {$this->nama_karyawan}<br>";
+        echo "Departemen: {$this->departemen}<br>";
+        echo "Status: Intern/Magang<br>";
+        echo "Uang Saku Bulan Ini: Rp " . number_format($this->hitungGajiBersih(), 0, ',', '.') . "<br><hr>";
     }
 }
